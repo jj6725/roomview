@@ -1,101 +1,71 @@
-let img;
-let x_off = 200;
-let y_off = 50;
-let fVec = [];
-let sVec = [];
-let firstClick = true;
-let firstVector;
-let secondVector;
+var sensors;
+var colorGrid;
+var drawBackground = true;
+
+const BLOCK_SIZE = 20
 
 function setup() {
-  createCanvas(windowWidth, windowHeight);
-  firstVector = createVector(0,0);
-  secondVector = createVector(0,0);
-  img = loadImage('floorplan.jpg')
+  createCanvas(1000, 500);
+  sensors = []
+  colorGrid = []
+  createGrid();
+  createSensors();
+  frameRate(60);
+}
+
+function createGrid() {
+  for (i = 0; i < windowWidth; i+=BLOCK_SIZE) {
+    for (j = 0; j < windowHeight; j+=BLOCK_SIZE) {
+      var newobj = new TempPoint(i,j,50)
+      colorGrid.push(newobj)
+    }
+  }
+}
+
+function createSensors() {
+  sensors.push(new Draggable(100,90,60))
+  sensors.push(new Draggable(200,180,70))
+  sensors.push(new Draggable(300,190,80))
+  sensors.push(new Draggable(400,300,90))
 }
 
 function draw() {
-  image(img, x_off, y_off, img.width*2, img.height*2);
-  drawLine();
-  drawGrid();
-  drawSetLines();
-}
-
-function drawGrid() {
-  for (let x = 0; x < windowWidth; x+=10){
-    for (let y = 0; y < windowHeight; y+=10){
-      strokeWeight(1);
-      stroke(0);
-      point(x,y);
-    }
-  }
-}
-
-function drawLine() {
-  if (!firstClick ) {
-    stroke(25, 224, 214);
-    strokeWeight(3);
-    line(firstVector.x, firstVector.y, mouseX, mouseY);
-  }
-}
-
-function drawSetLines() {
-  for (var i = fVec.length - 1; i >= 0; i--) {
-    stroke(252, 173, 3);
-    fill(252, 173, 3);
-    strokeWeight(2);
-    line(fVec[i].x, fVec[i].y, sVec[i].x, sVec[i].y);
-    circle(fVec[i].x, fVec[i].y, 5)
-    circle(sVec[i].x, sVec[i].y, 5)
-  }
+    background(255);
+    colorGrid.forEach(block => {
+      let temp = 0
+      sensors.forEach(sensor => {
+        const xdist = (block.x/BLOCK_SIZE-sensor.x/BLOCK_SIZE)*(block.x/BLOCK_SIZE-sensor.x/BLOCK_SIZE)
+        const ydist = (block.y/BLOCK_SIZE-sensor.y/BLOCK_SIZE)*(block.y/BLOCK_SIZE-sensor.y/BLOCK_SIZE)
+        const distance = sqrt(xdist+ydist)
+        temp += (sensor.value) * Math.pow(1.2, (-distance))
+      })
+      block.update(temp/4+50);
+      block.draw();
+    })
+  
+    sensors.forEach(sensor => {
+      sensor.over();
+      sensor.update();
+      sensor.show();
+    })
 }
 
 function mousePressed() {
-  if (firstClick) {
-    let roundX = round5(mouseX);
-    let roundY = round5(mouseY);
-    firstVector = createVector(roundX, roundY);
-    fill(25, 224, 214);
-    circle(roundX, roundY, 5)
-    firstClick = false;
-  } else {
-    let roundX = round5(mouseX);
-    let roundY = round5(mouseY);
-    secondVector = createVector(roundX, roundY);
-    fVec.push(firstVector);
-    sVec.push(secondVector);
-    console.log(firstVector, secondVector);
-    firstClick = true;
-  }
+  sensors.forEach(sensor => {
+    sensor.pressed()
+  })
 }
 
-function keyPressed() {
-  if(keyCode==ESCAPE) {
-    firstClick = true;
-  }
-
-  if(key=='u'){
-    fVec.pop()
-    sVec.pop()
-  }
-
-  if(key=='s'){
-    let lastPoint = sVec[sVec.length-1];
-    firstVector = lastPoint;
-    firstClick = false;
-    fill(25, 224, 214);
-    circle(lastPoint.x, lastPoint.y, 5)
-  }
-
-  if(key=='p'){
-    console.log("========================")
-    for (var i = 0; i < fVec.length; i++) {
-      console.log(fVec[i].x, fVec[i].y, sVec[i].x, sVec[i].y)
-    }
-    console.log("========================")
-  }
+function mouseReleased() {
+  sensors.forEach(sensor => {
+    sensor.released()
+  })
 }
 
-function round5(number) {
-  return round(number/5)*5;
+function colorMap(value) {
+  const hotColor = color(255, 51, 0)
+  const coldColor = color(0, 136, 255)
+  const minTemp = 50
+  const maxTemp = 100
+  return lerpColor(coldColor, hotColor, map(value, minTemp, maxTemp, 0, 1));
 }
